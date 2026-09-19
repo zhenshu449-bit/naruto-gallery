@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🍃 Naruto Gallery</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:#101010;
+  color:#fff;
+  font-family:Arial,"Microsoft YaHei",sans-serif;
+}
+header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:#181818;
+  padding:12px;
+  border-bottom:1px solid #333;
+}
+h1{
+  margin:0 0 10px;
+  font-size:22px;
+}
+input{
+  width:100%;
+  padding:11px;
+  border:0;
+  border-radius:8px;
+  background:#292929;
+  color:#fff;
+  outline:none;
+  margin-bottom:8px;
+}
+button{
+  border:0;
+  border-radius:8px;
+  padding:9px 12px;
+  margin:3px 2px;
+  background:#303030;
+  color:#fff;
+}
+button.active{
+  background:#e67e22;
+}
+#status{
+  color:#aaa;
+  font-size:13px;
+  margin-top:7px;
+}
+#gallery{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:9px;
+  padding:9px;
+}
+.card{
+  background:#1d1d1d;
+  border-radius:9px;
+  overflow:hidden;
+}
+.card img{
+  width:100%;
+  display:block;
+  cursor:pointer;
+}
+.info{
+  padding:9px;
+  font-size:13px;
+}
+.actions{
+  display:flex;
+  gap:6px;
+  margin-top:7px;
+}
+.actions button{
+  flex:1;
+  margin:0;
+}
+.load{
+  display:block;
+  margin:15px auto 30px;
+  background:#e67e22;
+  font-size:16px;
+}
+#viewer{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100;
+  background:#000;
+  touch-action:none;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+#viewer img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  transform-origin:center;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+#close{
+  position:fixed;
+  right:12px;
+  top:12px;
+  z-index:101;
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:#333;
+  font-size:25px;
+}
+#hint{
+  position:fixed;
+  bottom:15px;
+  left:0;
+  right:0;
+  text-align:center;
+  color:#bbb;
+  font-size:13px;
+  pointer-events:none;
+}
+.empty{
+  text-align:center;
+  color:#888;
+  padding:40px 10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🍃 Naruto Gallery</h1>
+
+<input id="search"
+placeholder="输入标签，例如 sakura、hinata、swimsuit">
+
+<div>
+<button class="active" onclick="character('sakura',this)">小樱</button>
+<button onclick="character('hinata',this)">雏田</button>
+<button onclick="character('ino',this)">井野</button>
+<button onclick="character('tsunade',this)">纲手</button>
+<button onclick="character('tenten',this)">天天</button>
+<button onclick="character('temari',this)">手鞠</button>
+<button onclick="character('mei_terumi',this)">照美冥</button>
+<button onclick="character('konan',this)">小南</button>
+</div>
+
+<div>
+<button onclick="setMode('all',this)">全部</button>
+<button onclick="setMode('sfw',this)">SFW</button>
+<button onclick="setMode('nsfw',this)">NSFW</button>
+<button onclick="setMode('fav',this)">❤️ 收藏</button>
+<button onclick="setMode('blocked',this)">🚫 已拉黑</button>
+</div>
+
+<div id="status">正在加载……</div>
+</header>
+
+<main id="gallery"></main>
+
+<button class="load" onclick="loadMore()">加载更多</button>
+
+<div id="viewer">
+<button id="close">×</button>
+<img id="viewerImg">
+<div id="hint">双击放大 · 双指缩放 · 单指拖动</div>
+</div>
+
+<script>
+
+const API="https://danbooru.donmai.us/posts.json";
+const LIMIT=100;
+
+let currentTag="sakura";
+let page=1;
+let mode="all";
+let loading=false;
+
+let blocked=JSON.parse(
+  localStorage.getItem("narutoBlocked")||"[]"
+).map(String);
+
+let favorites=JSON.parse(
+  localStorage.getItem("narutoFavorites")||"[]"
+).map(String);
+
+const gallery=document.getElementById("gallery");
+const status=document.getElementById("status");
+const search=document.getElementById("search");
+
+function save(){
+  localStorage.setItem(
+    "narutoBlocked",
+    JSON.stringify(blocked)
+  );
+
+  localStorage.setItem(
+    "narutoFavorites",
+    JSON.stringify(favorites)
+  );
+}
+
+function character(tag,btn){
+
+  currentTag=tag;
+  page=1;
+  mode="all";
+
+  document.querySelectorAll("header button")
+    .forEach(b=>b.classList.remove("active"));
+
+  if(btn) btn.classList.add("active");
+
+  gallery.innerHTML="";
+  loadMore();
+}
+
+function setMode(m,btn){
+
+  mode=m;
+
+  document.querySelectorAll("header button")
+    .forEach(b=>b.classList.remove("active"));
+
+  if(btn) btn.classList.add("active");
+
+  page=1;
+  gallery.innerHTML="";
+
+  if(m==="blocked"){
+    showBlocked();
+    return;
+  }
+
+  if(m==="fav"){
+    showFavorites();
+    return;
+  }
+
+  loadMore();
+}
+
+function buildTags(){
+
+  let q=search.value.trim();
+
+  if(q) return q;
+
+  return currentTag;
+}
+
+function isSFW(post){
+  return post.rating==="g" ||
+         post.rating==="s";
+}
+
+function matchesMode(post){
+
+  if(mode==="sfw")
+    return isSFW(post);
+
+  if(mode==="nsfw")
+    return !isSFW(post);
+
+  return true;
+}
+
+async function loadMore(){
+
+  if(loading)return;
+
+  loading=true;
+  status.textContent="正在加载……";
+
+  try{
+
+    const tags=buildTags();
+
+    const url=
+      API+
+      "?tags="+encodeURIComponent(tags)+
+      "&limit="+LIMIT+
+      "&page="+page;
+
+    const response=await fetch(url);
+
+    if(!response.ok)
+      throw new Error("API请求失败");
+
+    const posts=await response.json();
+
+    let count=0;
+
+    for(const post of posts){
+
+      if(!post.file_url)
+        continue;
+
+      const id=String(post.id);
+
+      if(blocked.includes(id))
+        continue;
+
+      if(!matchesMode(post))
+        continue;
+
+      addCard(post);
+      count++;
+    }
+
+    if(posts.length===0){
+      status.textContent="没有更多图片了";
+    }else{
+      status.textContent=
+        "已加载 "+gallery.children.length+" 张";
+    }
+
+    page++;
+
+  }catch(error){
+
+    console.error(error);
+
+    status.textContent=
+      "加载失败，请稍后再试";
+  }
+
+  loading=false;
+}
+
+function addCard(post){
+
+  const id=String(post.id);
+
+  const card=document.createElement("article");
+  card.className="card";
+
+  const img=document.createElement("img");
+
+  img.loading="lazy";
+  img.src=
+    post.large_file_url ||
+    post.file_url ||
+    post.preview_file_url;
+
+  img.alt="Naruto fanart";
+
+  img.onclick=()=>{
+    openViewer(post.file_url);
+  };
+
+  const info=document.createElement("div");
+  info.className="info";
+
+  const rating=
+    isSFW(post) ? "SFW" : "NSFW";
+
+  info.innerHTML=
+    "ID: "+id+
+    " · "+rating;
+
+  const actions=document.createElement("div");
+  actions.className="actions";
+
+  const fav=document.createElement("button");
+
+  updateFavoriteText(fav,id);
+
+  fav.onclick=()=>{
+    toggleFavorite(id);
+    updateFavoriteText(fav,id);
+  };
+
+  const block=document.createElement("button");
+
+  block.textContent="🚫 拉黑";
+
+  block.onclick=()=>{
+
+    if(!blocked.includes(id)){
+      blocked.push(id);
+      save();
+      card.remove();
+    }
+  };
+
+  const source=document.createElement("button");
+
+  source.textContent="🔗 原帖";
+
+  source.onclick=()=>{
+    window.open(
+      "https://danbooru.donmai.us/posts/"+id,
+      "_blank"
+    );
+  };
+
+  actions.append(fav,block,source);
+  info.appendChild(actions);
+
+  card.append(img,info);
+
+  gallery.appendChild(card);
+}
+
+function updateFavoriteText(btn,id){
+
+  btn.textContent=
+    favorites.includes(id)
+    ? "💔 取消收藏"
+    : "❤️ 收藏";
+}
+
+function toggleFavorite(id){
+
+  if(favorites.includes(id)){
+
+    favorites=
+      favorites.filter(x=>x!==id);
+
+  }else{
+
+    favorites.push(id);
+  }
+
+  save();
+}
+
+function showBlocked(){
+
+  gallery.innerHTML="";
+
+  if(blocked.length===0){
+
+    gallery.innerHTML=
+      '<div class="empty">暂无拉黑图片</div>';
+
+    status.textContent="暂无拉黑图片";
+    return;
+  }
+
+  status.textContent=
+    "已拉黑 "+blocked.length+" 张";
+}
+
+function showFavorites(){
+
+  gallery.innerHTML="";
+
+  if(favorites.length===0){
+
+    gallery.innerHTML=
+      '<div class="empty">暂无收藏图片</div>';
+
+    status.textContent="暂无收藏";
+    return;
+  }
+
+  status.textContent=
+    "收藏了 "+favorites.length+" 张";
+
+  /*
+   * 收藏ID永久保存在手机浏览器 localStorage。
+   * 页面刷新不会丢失。
+   */
+}
+
+search.addEventListener("keydown",e=>{
+
+  if(e.key==="Enter"){
+
+    currentTag=
+      search.value.trim()||"sakura";
+
+    page=1;
+    mode="all";
+
+    gallery.innerHTML="";
+
+    loadMore();
+  }
+});
+
+
+/* =========================
+   全屏图片查看器
+========================= */
+
+const viewer=
+  document.getElementById("viewer");
+
+const viewerImg=
+  document.getElementById("viewerImg");
+
+const close=
+  document.getElementById("close");
+
+let scale=1;
+let posX=0;
+let posY=0;
+
+let dragging=false;
+let startX=0;
+let startY=0;
+
+let lastTap=0;
+
+function updateTransform(){
+
+  viewerImg.style.transform=
+    `translate(${posX}px,${posY}px) scale(${scale})`;
+}
+
+function openViewer(url){
+
+  viewer.style.display="flex";
+
+  viewerImg.src=url;
+
+  scale=1;
+  posX=0;
+  posY=0;
+
+  updateTransform();
+}
+
+function closeViewer(){
+
+  viewer.style.display="none";
+
+  viewerImg.src="";
+}
+
+close.onclick=e=>{
+  e.stopPropagation();
+  closeViewer();
+};
+
+
+/* 双击放大 */
+
+viewerImg.addEventListener("click",e=>{
+
+  const now=Date.now();
+
+  if(now-lastTap<300){
+
+    scale=
+      scale===1
+      ? 2
+      : 1;
+
+    if(scale===1){
+      posX=0;
+      posY=0;
+    }
+
+    updateTransform();
+  }
+
+  lastTap=now;
+});
+
+
+/* 单指拖动 */
+
+viewerImg.addEventListener(
+  "pointerdown",
+  e=>{
+
+    if(e.pointerType==="touch")
+      return;
+
+    dragging=true;
+
+    startX=e.clientX-posX;
+    startY=e.clientY-posY;
+  }
+);
+
+window.addEventListener(
+  "pointermove",
+  e=>{
+
+    if(!dragging)return;
+
+    posX=e.clientX-startX;
+    posY=e.clientY-startY;
+
+    updateTransform();
+  }
+);
+
+window.addEventListener(
+  "pointerup",
+  ()=>{
+    dragging=false;
+  }
+);
+
+
+/* 手机双指缩放 */
+
+let pinchStart=0;
+let pinchScale=1;
+
+viewer.addEventListener(
+  "touchstart",
+  e=>{
+
+    if(e.touches.length===2){
+
+      pinchStart=distance(
+        e.touches[0],
+        e.touches[1]
+      );
+
+      pinchScale=scale;
+    }
+
+    else if(e.touches.length===1){
+
+      startX=e.touches[0].clientX-posX;
+      startY=e.touches[0].clientY-posY;
+    }
+  },
+  {passive:false}
+);
+
+viewer.addEventListener(
+  "touchmove",
+  e=>{
+
+    e.preventDefault();
+
+    if(e.touches.length===2){
+
+      const now=distance(
+        e.touches[0],
+        e.touches[1]
+      );
+
+      scale=
+        pinchScale*(now/pinchStart);
+
+      scale=Math.max(
+        1,
+        Math.min(scale,5)
+      );
+
+      updateTransform();
+
+    }else if(e.touches.length===1){
+
+      posX=
+        e.touches[0].clientX-startX;
+
+      posY=
+        e.touches[0].clientY-startY;
+
+      updateTransform();
+    }
+
+  },
+  {passive:false}
+);
+
+function distance(a,b){
+
+  return Math.hypot(
+    a.clientX-b.clientX,
+    a.clientY-b.clientY
+  );
+}
+
+
+/* 点击黑色区域关闭 */
+
+viewer.addEventListener("click",e=>{
+
+  if(e.target===viewer)
+    closeViewer();
+});
+
+
+/* 首次加载 */
+
+loadMore();
+
+</script>
+
+</body>
+</html>
