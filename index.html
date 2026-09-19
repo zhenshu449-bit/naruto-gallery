@@ -6,13 +6,16 @@
 <title>🍃 Naruto Gallery</title>
 
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
-body{
+html,body{
   margin:0;
+  padding:0;
   background:#101010;
   color:#fff;
-  font-family:Arial,"Microsoft YaHei",sans-serif
+  font-family:Arial,"Microsoft YaHei",sans-serif;
 }
 
 header{
@@ -21,12 +24,12 @@ header{
   z-index:20;
   background:#181818;
   padding:12px;
-  border-bottom:1px solid #333
+  border-bottom:1px solid #333;
 }
 
 h1{
   margin:0 0 10px;
-  font-size:22px
+  font-size:22px;
 }
 
 input{
@@ -38,7 +41,7 @@ input{
   background:#292929;
   color:#fff;
   outline:none;
-  font-size:15px
+  font-size:15px;
 }
 
 button{
@@ -48,70 +51,69 @@ button{
   border-radius:8px;
   background:#303030;
   color:#fff;
-  font-size:14px
+  font-size:14px;
 }
 
 button.active{
-  background:#e67e22
+  background:#e67e22;
 }
 
 #status{
   margin-top:7px;
   color:#aaa;
-  font-size:13px
+  font-size:13px;
 }
 
 #gallery{
   display:grid;
   grid-template-columns:1fr;
   gap:10px;
-  padding:10px
+  padding:10px;
 }
 
 .card{
   overflow:hidden;
   background:#1d1d1d;
-  border-radius:10px
+  border-radius:10px;
 }
 
 .card img{
   display:block;
   width:100%;
   height:auto;
+  background:#222;
   cursor:pointer;
-  background:#222
 }
 
 .info{
   padding:9px;
-  font-size:13px
+  font-size:13px;
 }
 
 .actions{
   display:flex;
   gap:6px;
-  margin-top:7px
+  margin-top:7px;
 }
 
 .actions button{
   flex:1;
-  margin:0
+  margin:0;
 }
 
 .load{
   display:block;
   margin:15px auto 30px;
   background:#e67e22;
-  font-size:16px
+  font-size:16px;
 }
 
 .empty{
   text-align:center;
   color:#888;
   padding:60px 10px;
-  font-size:16px
+  font-size:16px;
 }
-
 
 /* 查看器 */
 
@@ -124,16 +126,16 @@ button.active{
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  touch-action:none
+  touch-action:none;
 }
 
 #viewerImg{
   max-width:100%;
   max-height:100%;
   object-fit:contain;
-  transform-origin:center;
   user-select:none;
-  -webkit-user-drag:none
+  -webkit-user-drag:none;
+  transform-origin:center;
 }
 
 #close{
@@ -147,7 +149,7 @@ button.active{
   margin:0;
   border-radius:50%;
   background:#333;
-  font-size:28px
+  font-size:28px;
 }
 
 #hint{
@@ -158,7 +160,7 @@ button.active{
   text-align:center;
   color:#aaa;
   font-size:13px;
-  pointer-events:none
+  pointer-events:none;
 }
 </style>
 </head>
@@ -214,35 +216,43 @@ onclick="character('terumi_mei',this)">
 
 <div>
 
-<button onclick="setMode('all',this)">
+<button
+onclick="setMode('all',this)">
 全部
 </button>
 
-<button onclick="setMode('sfw',this)">
+<button
+onclick="setMode('sfw',this)">
 SFW
 </button>
 
-<button onclick="setMode('nsfw',this)">
+<button
+onclick="setMode('nsfw',this)">
 NSFW
 </button>
 
-<button onclick="setMode('fav',this)">
+<button
+onclick="setMode('fav',this)">
 ❤️ 收藏
 </button>
 
-<button onclick="setMode('blocked',this)">
+<button
+onclick="setMode('blocked',this)">
 🚫 已拉黑
 </button>
 
 </div>
 
-<div id="status">正在加载……</div>
+<div id="status">
+正在加载……
+</div>
 
 </header>
 
 <main id="gallery"></main>
 
 <button
+id="loadButton"
 class="load"
 onclick="loadMore()">
 加载更多
@@ -251,7 +261,9 @@ onclick="loadMore()">
 
 <div id="viewer">
 
-<button id="close">×</button>
+<button id="close">
+×
+</button>
 
 <img id="viewerImg">
 
@@ -264,12 +276,17 @@ onclick="loadMore()">
 
 <script>
 
+/* =====================================
+   基本设置
+===================================== */
+
 const API =
 "https://danbooru.donmai.us/posts.json";
 
 const LIMIT = 100;
 
-let currentTag = "haruno_sakura";
+let currentTag =
+"haruno_sakura";
 
 let page = 1;
 
@@ -278,9 +295,26 @@ let mode = "all";
 let loading = false;
 
 
-/* =========================
-   本地收藏 / 拉黑
-========================= */
+/* =====================================
+   DOM
+===================================== */
+
+const gallery =
+document.getElementById("gallery");
+
+const status =
+document.getElementById("status");
+
+const search =
+document.getElementById("search");
+
+const loadButton =
+document.getElementById("loadButton");
+
+
+/* =====================================
+   本地数据
+===================================== */
 
 function readStorage(key){
 
@@ -306,10 +340,6 @@ function readStorage(key){
 
 function normalizeItem(item){
 
-  /*
-   兼容以前只保存 ID 的版本
-  */
-
   if(typeof item === "string"){
 
     return {
@@ -328,31 +358,30 @@ function normalizeItem(item){
   }
 
   return {
-
     id:String(item.id),
-
     image:item.image || "",
-
     preview:item.preview || "",
-
     rating:item.rating || "q"
-
   };
 
 }
 
 
 let favorites =
-  readStorage("narutoFavorites")
-  .map(normalizeItem)
-  .filter(Boolean);
+readStorage("narutoFavorites")
+.map(normalizeItem)
+.filter(Boolean);
 
 
 let blocked =
-  readStorage("narutoBlocked")
-  .map(normalizeItem)
-  .filter(Boolean);
+readStorage("narutoBlocked")
+.map(normalizeItem)
+.filter(Boolean);
 
+
+/* =====================================
+   保存
+===================================== */
 
 function saveFavorites(){
 
@@ -374,9 +403,9 @@ function saveBlocked(){
 }
 
 
-/* =========================
-   工具
-========================= */
+/* =====================================
+   判断
+===================================== */
 
 function isFavorite(id){
 
@@ -406,76 +435,122 @@ function isSFW(post){
 }
 
 
-function getTags(){
+/*
+  鸣人 / 佐助排除
 
-  const text =
-    document.getElementById("search")
-    .value
-    .trim();
+  注意：
+  不放进 API 查询参数，
+  避免导致 API 返回异常。
 
-  const tag =
-    text || currentTag;
+  在前端过滤。
+*/
 
-  /*
-   排除鸣人、佐助
-  */
+function isExcluded(post){
 
-  return tag +
-    " -naruto_uzumaki" +
-    " -sasuke_uchiha";
+  const tags =
+    String(post.tag_string || "")
+    .toLowerCase();
+
+  const forbidden = [
+
+    "naruto_uzumaki",
+
+    "uzumaki_naruto",
+
+    "sasuke_uchiha",
+
+    "uchiha_sasuke"
+
+  ];
+
+  return forbidden.some(
+    tag =>
+      tags
+      .split(/\s+/)
+      .includes(tag)
+  );
 
 }
 
 
-/* =========================
-   角色
-========================= */
+/* =====================================
+   获取标签
+===================================== */
+
+function getTags(){
+
+  const text =
+    search.value.trim();
+
+  return text || currentTag;
+
+}
+
+
+/* =====================================
+   角色按钮
+===================================== */
 
 function character(tag,btn){
 
-  currentTag = tag;
+  currentTag =
+    tag;
 
-  page = 1;
+  page =
+    1;
 
-  mode = "all";
+  mode =
+    "all";
 
-  gallery.innerHTML = "";
+  gallery.innerHTML =
+    "";
 
   document
     .querySelectorAll("header button")
     .forEach(
-      b => b.classList.remove("active")
+      b =>
+        b.classList.remove("active")
     );
 
   btn.classList.add("active");
+
+  loadButton.style.display =
+    "block";
 
   loadMore();
 
 }
 
 
-/* =========================
-   模式
-========================= */
+/* =====================================
+   模式按钮
+===================================== */
 
 function setMode(m,btn){
 
-  mode = m;
+  mode =
+    m;
 
-  page = 1;
+  page =
+    1;
 
-  gallery.innerHTML = "";
+  gallery.innerHTML =
+    "";
 
   document
     .querySelectorAll("header button")
     .forEach(
-      b => b.classList.remove("active")
+      b =>
+        b.classList.remove("active")
     );
 
   btn.classList.add("active");
 
 
   if(m === "fav"){
+
+    loadButton.style.display =
+      "none";
 
     showFavorites();
 
@@ -486,6 +561,9 @@ function setMode(m,btn){
 
   if(m === "blocked"){
 
+    loadButton.style.display =
+      "none";
+
     showBlocked();
 
     return;
@@ -493,19 +571,23 @@ function setMode(m,btn){
   }
 
 
+  loadButton.style.display =
+    "block";
+
   loadMore();
 
 }
 
 
-/* =========================
-   普通 API 加载
-========================= */
+/* =====================================
+   加载 API
+===================================== */
 
 async function loadMore(){
 
   if(loading)
     return;
+
 
   if(
     mode === "fav" ||
@@ -514,7 +596,11 @@ async function loadMore(){
     return;
 
 
-  loading = true;
+  loading =
+    true;
+
+  loadButton.disabled =
+    true;
 
   status.textContent =
     "正在加载图片……";
@@ -522,26 +608,38 @@ async function loadMore(){
 
   try{
 
-    const url =
-      API +
-      "?tags=" +
-      encodeURIComponent(
-        getTags()
-      ) +
-      "&limit=" +
-      LIMIT +
-      "&page=" +
-      page;
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "tags",
+      getTags()
+    );
+
+    params.set(
+      "limit",
+      LIMIT
+    );
+
+    params.set(
+      "page",
+      page
+    );
 
 
     const response =
-      await fetch(url);
+      await fetch(
+        API +
+        "?" +
+        params.toString()
+      );
 
 
     if(!response.ok){
 
       throw new Error(
-        "HTTP " + response.status
+        "HTTP " +
+        response.status
       );
 
     }
@@ -560,7 +658,8 @@ async function loadMore(){
     }
 
 
-    let added = 0;
+    let added =
+      0;
 
 
     for(const post of posts){
@@ -573,9 +672,19 @@ async function loadMore(){
         String(post.id);
 
 
+      /* 排除鸣人佐助 */
+
+      if(isExcluded(post))
+        continue;
+
+
+      /* 已拉黑 */
+
       if(isBlocked(id))
         continue;
 
+
+      /* SFW */
 
       if(
         mode === "sfw" &&
@@ -583,6 +692,8 @@ async function loadMore(){
       )
         continue;
 
+
+      /* NSFW */
 
       if(
         mode === "nsfw" &&
@@ -603,10 +714,15 @@ async function loadMore(){
       status.textContent =
         "没有更多图片了";
 
+      loadButton.style.display =
+        "none";
+
     }else{
 
       status.textContent =
-        "已加载 " +
+        "本次加载 " +
+        added +
+        " 张 · 当前 " +
         gallery.children.length +
         " 张";
 
@@ -621,20 +737,24 @@ async function loadMore(){
     console.error(error);
 
     status.textContent =
-      "图片加载失败：" +
+      "加载失败：" +
       error.message;
 
   }
 
 
-  loading = false;
+  loading =
+    false;
+
+  loadButton.disabled =
+    false;
 
 }
 
 
-/* =========================
+/* =====================================
    普通图片卡片
-========================= */
+===================================== */
 
 function addCard(post){
 
@@ -653,7 +773,8 @@ function addCard(post){
     document.createElement("img");
 
 
-  img.loading = "lazy";
+  img.loading =
+    "lazy";
 
 
   img.src =
@@ -666,27 +787,29 @@ function addCard(post){
     "Naruto fanart";
 
 
-  img.onerror = function(){
+  img.onerror =
+    function(){
 
-    if(
-      this.src !== post.file_url
-    ){
+      if(
+        this.src !== post.file_url
+      ){
 
-      this.src =
-        post.file_url;
+        this.src =
+          post.file_url;
 
-    }
+      }
 
-  };
+    };
 
 
-  img.onclick = function(){
+  img.onclick =
+    function(){
 
-    openViewer(
-      post.file_url
-    );
+      openViewer(
+        post.file_url
+      );
 
-  };
+    };
 
 
   const info =
@@ -714,7 +837,7 @@ function addCard(post){
     "actions";
 
 
-  /* 收藏按钮 */
+  /* 收藏 */
 
   const fav =
     document.createElement("button");
@@ -726,16 +849,17 @@ function addCard(post){
   );
 
 
-  fav.onclick = function(){
+  fav.onclick =
+    function(){
 
-    toggleFavorite(post);
+      toggleFavorite(post);
 
-    updateFavoriteButton(
-      fav,
-      id
-    );
+      updateFavoriteButton(
+        fav,
+        id
+      );
 
-  };
+    };
 
 
   /* 拉黑 */
@@ -747,13 +871,14 @@ function addCard(post){
     "🚫 拉黑";
 
 
-  block.onclick = function(){
+  block.onclick =
+    function(){
 
-    addBlocked(post);
+      addBlocked(post);
 
-    card.remove();
+      card.remove();
 
-  };
+    };
 
 
   /* 原帖 */
@@ -765,15 +890,16 @@ function addCard(post){
     "🔗 原帖";
 
 
-  source.onclick = function(){
+  source.onclick =
+    function(){
 
-    window.open(
-      "https://danbooru.donmai.us/posts/" +
-      id,
-      "_blank"
-    );
+      window.open(
+        "https://danbooru.donmai.us/posts/" +
+        id,
+        "_blank"
+      );
 
-  };
+    };
 
 
   actions.append(
@@ -801,9 +927,9 @@ function addCard(post){
 }
 
 
-/* =========================
+/* =====================================
    收藏
-========================= */
+===================================== */
 
 function toggleFavorite(post){
 
@@ -828,8 +954,8 @@ function toggleFavorite(post){
   }else{
 
     /*
-     这里是关键：
-     保存完整图片资料，而不是只保存 ID
+      关键：
+      保存完整图片信息
     */
 
     favorites.push({
@@ -846,7 +972,8 @@ function toggleFavorite(post){
         "",
 
       rating:
-        post.rating || "q"
+        post.rating ||
+        "q"
 
     });
 
@@ -863,24 +990,17 @@ function updateFavoriteButton(
   id
 ){
 
-  if(isFavorite(id)){
-
-    button.textContent =
-      "💔 取消收藏";
-
-  }else{
-
-    button.textContent =
-      "❤️ 收藏";
-
-  }
+  button.textContent =
+    isFavorite(id)
+    ? "💔 取消收藏"
+    : "❤️ 收藏";
 
 }
 
 
-/* =========================
+/* =====================================
    拉黑
-========================= */
+===================================== */
 
 function addBlocked(post){
 
@@ -906,7 +1026,8 @@ function addBlocked(post){
       "",
 
     rating:
-      post.rating || "q"
+      post.rating ||
+      "q"
 
   });
 
@@ -915,27 +1036,28 @@ function addBlocked(post){
 
 
   status.textContent =
-    "已拉黑 ID " + id;
+    "已拉黑 ID " +
+    id;
 
 }
 
 
-/* =========================
+/* =====================================
    收藏页面
-========================= */
+===================================== */
 
 async function showFavorites(){
 
-  gallery.innerHTML = "";
-
-  status.textContent =
-    "正在读取收藏……";
+  gallery.innerHTML =
+    "";
 
 
   if(favorites.length === 0){
 
     gallery.innerHTML =
-      '<div class="empty">❤️ 暂无收藏图片</div>';
+      '<div class="empty">' +
+      '❤️ 暂无收藏图片' +
+      '</div>';
 
     status.textContent =
       "暂无收藏";
@@ -945,91 +1067,116 @@ async function showFavorites(){
   }
 
 
+  status.textContent =
+    "正在读取收藏……";
+
+
+  let repaired =
+    false;
+
+
   /*
-   旧版本如果只有 ID，
-   自动尝试从 Danbooru 恢复图片资料
+    先显示已经保存完整数据的收藏
   */
 
-  let repaired = false;
+  for(const item of favorites){
 
-
-  for(let i=0;i<favorites.length;i++){
-
-    const item =
-      favorites[i];
-
-
-    if(
-      item.image &&
-      item.preview
-    ){
+    if(item.image){
 
       addStoredFavoriteCard(
         item
       );
 
-      continue;
-
     }
+
+  }
+
+
+  /*
+    修复旧版本只有 ID 的收藏
+  */
+
+  for(const item of favorites){
+
+    if(item.image)
+      continue;
 
 
     try{
 
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "tags",
+        "id:" + item.id
+      );
+
+      params.set(
+        "limit",
+        "1"
+      );
+
+
       const response =
         await fetch(
           API +
-          "?tags=id:" +
-          encodeURIComponent(
-            item.id
-          )
+          "?" +
+          params.toString()
         );
 
 
-      if(response.ok){
-
-        const posts =
-          await response.json();
+      if(!response.ok)
+        continue;
 
 
-        if(
-          Array.isArray(posts) &&
-          posts.length > 0 &&
-          posts[0].file_url
-        ){
-
-          const post =
-            posts[0];
+      const posts =
+        await response.json();
 
 
-          item.image =
-            post.file_url;
+      if(
+        !Array.isArray(posts) ||
+        !posts.length
+      )
+        continue;
 
 
-          item.preview =
-            post.large_file_url ||
-            post.preview_file_url ||
-            post.file_url;
+      const post =
+        posts[0];
 
 
-          item.rating =
-            post.rating || "q";
+      if(!post.file_url)
+        continue;
 
 
-          repaired = true;
+      item.image =
+        post.file_url;
 
 
-          addStoredFavoriteCard(
-            item
-          );
+      item.preview =
+        post.large_file_url ||
+        post.preview_file_url ||
+        post.file_url;
 
-        }
 
-      }
+      item.rating =
+        post.rating ||
+        "q";
 
-    }catch(e){
+
+      repaired =
+        true;
+
+
+      addStoredFavoriteCard(
+        item
+      );
+
+
+    }catch(error){
 
       console.log(
-        "无法恢复收藏",
+        "修复收藏失败:",
         item.id
       );
 
@@ -1045,45 +1192,41 @@ async function showFavorites(){
   }
 
 
-  const visible =
-    gallery.querySelectorAll(
-      ".card"
-    ).length;
-
-
-  if(visible === 0){
+  if(
+    gallery.children.length === 0
+  ){
 
     gallery.innerHTML =
       '<div class="empty">' +
-      '收藏数据里没有可显示的图片<br><br>' +
-      '重新收藏一次即可正常保存。' +
+      '收藏图片无法恢复。<br><br>' +
+      '请重新点一次 ❤️ 收藏。' +
       '</div>';
 
   }
 
 
   status.textContent =
-    "收藏 " +
+    "❤️ 收藏 " +
     favorites.length +
     " 张";
 
 }
 
 
-/* =========================
+/* =====================================
    收藏卡片
-========================= */
+===================================== */
 
 function addStoredFavoriteCard(
   item
 ){
 
-  const id =
-    String(item.id);
-
-
   if(!item.image)
     return;
+
+
+  const id =
+    String(item.id);
 
 
   const card =
@@ -1095,6 +1238,7 @@ function addStoredFavoriteCard(
 
   const img =
     document.createElement("img");
+
 
   img.loading =
     "lazy";
@@ -1226,19 +1370,22 @@ function addStoredFavoriteCard(
 }
 
 
-/* =========================
+/* =====================================
    拉黑页面
-========================= */
+===================================== */
 
 function showBlocked(){
 
-  gallery.innerHTML = "";
+  gallery.innerHTML =
+    "";
 
 
   if(blocked.length === 0){
 
     gallery.innerHTML =
-      '<div class="empty">🚫 暂无拉黑图片</div>';
+      '<div class="empty">' +
+      '🚫 暂无拉黑图片' +
+      '</div>';
 
     status.textContent =
       "暂无拉黑图片";
@@ -1262,16 +1409,16 @@ function showBlocked(){
 
 
   status.textContent =
-    "已拉黑 " +
+    "🚫 已拉黑 " +
     blocked.length +
     " 张";
 
 }
 
 
-/* =========================
+/* =====================================
    拉黑卡片
-========================= */
+===================================== */
 
 function addStoredBlockedCard(
   item
@@ -1290,6 +1437,7 @@ function addStoredBlockedCard(
 
   const img =
     document.createElement("img");
+
 
   img.loading =
     "lazy";
@@ -1421,9 +1569,9 @@ function addStoredBlockedCard(
 }
 
 
-/* =========================
+/* =====================================
    搜索
-========================= */
+===================================== */
 
 search.addEventListener(
   "keydown",
@@ -1438,11 +1586,17 @@ search.addEventListener(
       "haruno_sakura";
 
 
-    page = 1;
+    page =
+      1;
 
-    mode = "all";
+    mode =
+      "all";
 
-    gallery.innerHTML = "";
+    gallery.innerHTML =
+      "";
+
+    loadButton.style.display =
+      "block";
 
     loadMore();
 
@@ -1450,41 +1604,49 @@ search.addEventListener(
 );
 
 
-/* =========================
+/* =====================================
    图片查看器
-========================= */
+===================================== */
 
 const viewer =
-  document.getElementById(
-    "viewer"
-  );
+document.getElementById(
+  "viewer"
+);
 
 const viewerImg =
-  document.getElementById(
-    "viewerImg"
-  );
+document.getElementById(
+  "viewerImg"
+);
 
 const close =
-  document.getElementById(
-    "close"
-  );
+document.getElementById(
+  "close"
+);
 
 
-let scale = 1;
+let scale =
+  1;
 
-let posX = 0;
+let posX =
+  0;
 
-let posY = 0;
+let posY =
+  0;
 
-let lastTap = 0;
+let lastTap =
+  0;
 
-let pinchStart = 0;
+let pinchStart =
+  0;
 
-let pinchScale = 1;
+let pinchScale =
+  1;
 
-let startX = 0;
+let startX =
+  0;
 
-let startY = 0;
+let startY =
+  0;
 
 
 function updateTransform(){
@@ -1515,11 +1677,14 @@ function openViewer(url){
     url;
 
 
-  scale = 1;
+  scale =
+    1;
 
-  posX = 0;
+  posX =
+    0;
 
-  posY = 0;
+  posY =
+    0;
 
   updateTransform();
 
@@ -1531,7 +1696,8 @@ function closeViewer(){
   viewer.style.display =
     "none";
 
-  viewerImg.src = "";
+  viewerImg.src =
+    "";
 
 }
 
@@ -1546,7 +1712,7 @@ close.onclick =
   };
 
 
-/* 双击 */
+/* 双击放大 */
 
 viewerImg.addEventListener(
   "click",
@@ -1562,15 +1728,19 @@ viewerImg.addEventListener(
 
       if(scale === 1){
 
-        scale = 2;
+        scale =
+          2;
 
       }else{
 
-        scale = 1;
+        scale =
+          1;
 
-        posX = 0;
+        posX =
+          0;
 
-        posY = 0;
+        posY =
+          0;
 
       }
 
@@ -1580,7 +1750,8 @@ viewerImg.addEventListener(
     }
 
 
-    lastTap = now;
+    lastTap =
+      now;
 
   }
 );
@@ -1620,7 +1791,9 @@ viewer.addEventListener(
     }
 
   },
-  {passive:false}
+  {
+    passive:false
+  }
 );
 
 
@@ -1678,27 +1851,34 @@ viewer.addEventListener(
     }
 
   },
-  {passive:false}
+  {
+    passive:false
+  }
 );
 
 
 function distance(a,b){
 
   return Math.hypot(
-    a.clientX - b.clientX,
-    a.clientY - b.clientY
+    a.clientX -
+    b.clientX,
+
+    a.clientY -
+    b.clientY
   );
 
 }
 
 
-/* 点击黑色区域关闭 */
+/* 黑色背景关闭 */
 
 viewer.addEventListener(
   "click",
   function(e){
 
-    if(e.target === viewer){
+    if(
+      e.target === viewer
+    ){
 
       closeViewer();
 
@@ -1708,13 +1888,13 @@ viewer.addEventListener(
 );
 
 
-/* =========================
+/* =====================================
    启动
-========================= */
+===================================== */
 
 loadMore();
 
 </script>
 
 </body>
-</html>
+  </html>
